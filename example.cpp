@@ -2,16 +2,18 @@
 
 #include <iostream>
 
+// https://godbolt.org/z/nhdMEbo1q
+
 // first:
 // why we better than `microsoft\proxy` is that we can
 // have more customization the invocation of impl with less code.
-template<typename Constraint, typename Transform=::std::identity>
+template<typename Constraint, typename Transform=std::identity>
 struct program_
 {
 	template<typename Impl, typename...Args>
 	constexpr decltype(auto) operator()(Impl &impl, Args&&...args) 
-		noexcept(noexcept(::std::declval<Impl&>().program(::std::declval<Args&&>()...))) 
-	{ if(!Constraint()(impl)) ::std::cout << "Panic!\n"; // i dont know why std::exception is different.
+		noexcept(noexcept(std::declval<Impl&>().program(std::declval<Args&&>()...))) 
+	{ if(!Constraint()(impl)) std::cout << "Panic!\n";
 	return Transform()(impl).program(static_cast<Args &&>(args)...); }
 };
 
@@ -24,7 +26,7 @@ struct work_5time // constraint will be invoke by `program_`
 			if (value.time != 5) return true;
 			else return false;
 		} else // some static constraints...
-			static_assert(::std::is_abstract_v<T> ? false : false, "Drawable must be blah blah...");
+			static_assert(std::is_abstract_v<T>?0:0, "Drawable must be blah blah...");
 	}
 };
 
@@ -33,10 +35,10 @@ struct no_constraints
 	constexpr bool operator()(auto&) noexcept { return true; }
 };
 
-template<typename Signature, typename Constraint, typename Transform=::std::identity>
+template<typename Signature, typename Constraint, typename Transform=std::identity>
 struct eprogram_ : program_<Constraint, Transform>
 {
-	using signature = Signature;
+	using prototype = Signature;
 };
 
 struct eprogram : eprogram_<void(int), no_constraints> {};
@@ -44,9 +46,9 @@ struct eprogram : eprogram_<void(int), no_constraints> {};
 struct programable 
 {
 	using dynamic 
-		= dyn::require< void(program_<work_5time>::*)()
-		, eprogram_<void(), work_5time>
-		, eprogram>;
+		= dyn::require<void(program_<work_5time>::*)()>
+		::append<eprogram_<void(), work_5time>>
+		::append<eprogram>;
 
 	// these extend the functionality of dynamic concept.
 	// btw, you also can add `const` to qualify or `noexcept` to strength `concept`.
@@ -62,17 +64,17 @@ struct programable
 // ```cpp
 // #define DEFINE_CONVENSION(convension_name, invoke_name) 
 // struct convension_name \
-// { \ 
+// { \
 // 	template<typename Impl, typename...Args> \
-// 	constexpr decltype(auto) operator()(Impl &&impl, Args&&...args) \ 
-// 		noexcept(noexcept(::std::declval<Impl&>().invoke_name(::std::declval<Args&&>()...))) \
+// 	constexpr decltype(auto) operator()(Impl &&impl, Args&&...args) \
+// 		noexcept(noexcept(std::declval<Impl&>().invoke_name(std::declval<Args&&>()...))) \
 // 	{ return static_cast<Impl&&>(impl).invoke_name(static_cast<Args &&>(args)...); } \
 // };
 // ```
 // `convension_name`: is what you express to require.
 // `invoke_name`: is what function will be invoke in impl.
 // these would do the samething with proxy.
-// NOTE: not compatible with proxy.
+// NOTE: we don't compatible with proxy.
 
 // actually, `operator()` can also constraint `interface`. 
 struct sleep_
@@ -90,8 +92,9 @@ struct programmer
 		// `dyn::self` is duck type,
 		// use mark the implmentation can only 
 		// invoke in `right value reference` state.
-		// NOTE: `dyn::self` should not be initialized.
-		, bool (sleep_::*)(dyn::self&&)>;
+		// NOTE: 1. `dyn::self` cannot be initialized.
+		//       2. 'bool(sleep_::*)()&&' is same.
+		, bool(sleep_::*)(dyn::self&&)>;
 
 	// TODO: however, losing the functionality of `programable`,
 	// we might implment it some other time...
@@ -113,21 +116,21 @@ struct programmer
 
 struct joe
 {
-	void program() const { ::std::cout << "Joe: Hello world: " << time << ::std::endl; }
-	void program(int value) { ::std::cout << "Joe: Hello world with set: " << (time = value) << ::std::endl; }
+	void program() const { std::cout << "Joe: Hello world: " << time << std::endl; }
+	void program(int value) { std::cout << "Joe: Hello world with set: " << (time = value) << std::endl; }
 
 	// `&&` qualified is because the interface definition.
-	bool sleep() && { ::std::cout << "Joe: I sleep: " << ::std::exchange(time, 0) << ::std::endl; return true; }
+	bool sleep() && { std::cout << "Joe: I sleep: " << std::exchange(time, 0) << std::endl; return true; }
 
 	int time{5};
 };
 
 struct mary
 {
-	void program() const { ::std::cout << "Mary: Hello world and what: " << time << ::std::endl; }
-	void program(int value) { ::std::cout << "Mary: Hello world with set: " << (time = value) << ::std::endl; }
+	void program() const { std::cout << "Mary: Hello world and what: " << time << std::endl; }
+	void program(int value) { std::cout << "Mary: Hello world with set: " << (time = value) << std::endl; }
 
-	bool sleep() && { ::std::cout << "Mary: I sleep: " << ::std::exchange(time, 0) << ::std::endl; return true; }
+	bool sleep() && { std::cout << "Mary: I sleep: " << std::exchange(time, 0) << std::endl; return true; }
 
 	int time{4};
 };
@@ -160,18 +163,22 @@ struct shared_ptr_factory
 { 
 	template<typename...Args>
 	static constexpr auto make(Args&&...args)
-	{ return::std::make_shared<T>(static_cast<Args&&>(args)...); }
+	{ return std::make_shared<T>(static_cast<Args&&>(args)...); }
 };
 
 // because `shared_ptr` have `element_type`, 
 // thus builtin `owner_traits` have partially specialization 
 // for compatible with it.
 // if you want some other pointer that doesnt contain specified member.
-// just specialize the traits.  
-void somewhat(dyn::generic_<programmer, ::std::shared_ptr<void>> who)
+// just specialize the traits. 
+dyn::generic_<programmer, std::shared_ptr<void>> somewhat(int index)
 {
-	who.program();
-	who.deep_sleep(9);
+	switch (index)
+	{
+	case 0: return {shared_ptr_factory<joe>()};
+	case 1: return {std::make_shared<mary>()};
+	default: return {};
+	}
 }
 
 int main(void)
@@ -185,15 +192,22 @@ int main(void)
 	}
 
 	// test 2:
-	some({::std::in_place_type<joe>});
-	some({::std::in_place_type<mary>});
+	some({std::in_place_type<joe>});
+	some({std::in_place_type<mary>});
 
 	// test 3:
 	{
-		auto j = ::std::make_shared<joe>();
-		somewhat(j);
-		somewhat({shared_ptr_factory<mary>()});
-		// after sleep, it also resulting zero.
-		j->program();
+		somewhat(0).deep_sleep(5);
+		auto c = somewhat(1);
+		{
+			auto k = c;
+			k.program();
+		}
+		{
+			auto v = c;
+			v.program();
+		}
+		std::move(*std::static_pointer_cast<mary>(c.detach())).sleep();
+		::std::cout << "Mary now on seat: " << std::boolalpha << c << ::std::endl;
 	}
 }
