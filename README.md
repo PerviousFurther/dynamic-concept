@@ -138,9 +138,12 @@ Sometime the compilers might apply devirtualization.
 Then it looks faster than dynamic concept.
 but not all the virtual function can be so lucky for 
 being devirtualized by compilers.
-See [online test](https://godbolt.org/z/xa4jv7T8E)
+See [online test](https://godbolt.org/z/ard6Phrhb)
 
-*NOTE: since Clang doesn't like inline function, it may preform slower than GCC.*
+*NOTE:  since Clang doesn't like inline function, 
+it may preform slower than GCC. However, 
+dynamic concept will always faster than 
+virtual function in MSVC.*
 
 ## How does it implmented?
 Manually making vtable. 
