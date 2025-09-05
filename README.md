@@ -17,14 +17,14 @@ struct impl : interface_0, interface_1 {};
 static_assert(sizeof(impl) == 16) // in x64 never fire!
 
 // also the pointer casting will change the pointer's value.
-// this will not fire!
-static_assert((interface_0*)(impl*)(0) != (interface_1*)(impl*)(0)) 
+// the following part will always resulting true!
+// (uint64_t)(interface_0*)(pointer of impl) != (uint64_t)(interface_1*)(pointer of impl)
 
 // AND
 // the interface can only be called by pointer or rerference, like...
-void plug(interface_0 *ptr);
+// ' void plug(interface_0 *ptr); '
 // or 
-void plug(interface_0 &ref);
+// ' void plug(interface_0 &ref); '
 // the ownership is not clear.
 
 ```
