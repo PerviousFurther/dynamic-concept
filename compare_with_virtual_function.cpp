@@ -3,16 +3,23 @@
 
 // traiditional interface.
 
-struct iyell
-{
-	virtual void yell() = 0;
-};
-struct ibark
-{
-	virtual void bark() = 0;
-};
+struct iyell { virtual void yell() = 0; };
+struct ibark { virtual void bark() = 0; };
+#pragma region ...
 struct ianimal : iyell, ibark {};
+#include <iostream>
 
+struct dog : ianimal
+{
+    void yell() { std::cout << "."; }
+    void bark() { std::cout << "!"; }
+};
+#pragma endregion
+struct cat : iyell, ibark
+{
+    void yell() { std::cout << "."; }
+    void bark() { std::cout << "!"; }
+}; // 64 bit platform.
 
 // We still need some ways to decrease code to do with it.
 // I hope these could be an grammar if it can be use as standard.
@@ -27,14 +34,6 @@ struct animal
 	using dynamic = dyn::require<bark, yell>;
 	void bark() { dynamic::invoke<0>(this); }
 	void yell() { dynamic::invoke<1>(this); }
-};
-
-#include <iostream>
-
-struct dog : ianimal
-{
-    void yell() { std::cout << "."; }
-    void bark() { std::cout << "!"; }
 };
 
 #include <chrono>
@@ -71,11 +70,7 @@ void test_0(dyn::view<animal> dv, ianimal &pv)
 int main(void)
 {
     dog w;
-    test_0(w, w);
-    ::std::cout 
-        << "[[Ignore upper one.]]\n"
-        "Chrono might initialize something \n"
-        "and without exclude it...\n";
+    ::std::cout << clk::now() - clk::now() << ::std::endl;
     for (auto i{10}; i--;)
         test_0(w, w); 
 }

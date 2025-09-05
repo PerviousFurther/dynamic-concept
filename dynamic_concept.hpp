@@ -5,7 +5,6 @@
 #if !defined(DYNAMIC_CONCEPT_NO_STD)
 #	include <utility>
 #	include <concepts>
-#	include <bit>
 #endif
 
 // `#define DYNAMIC_CONCEPT_EXPORT_AS_MODULE export` 
@@ -219,15 +218,17 @@ protected:
 	{ ::std::swap(ptr_, other.ptr_); ::std::swap(this_, other.this_); return *this; }
 
 private:
-	template<::std::size_t index>
-	constexpr auto get() noexcept
-	{ return::std::bit_cast<ptype_t<type_at_t<index, sign>>>
-		(*(::std::bit_cast<void const *const*>(ptr_) + (sizeof...(Signs) - (index+1)))); }
+	template<::std::size_t index, typename T=void *const>
+	static constexpr auto &get(void const *ptr) noexcept 
+	{ return reinterpret_cast<T&>
+		(*(reinterpret_cast<void *const*>(ptr) + (sizeof...(Signs) - (index)))); }
 
 protected:
 	template<::std::size_t index, typename...Args>
 	constexpr decltype(auto) invoke(Args&&...args) 
-	{ return this->template get<index>()(this_, static_cast<Args&&>(args)...); }
+	{ return virtual_bundle::template 
+		get<index + 1, typename prototype_traits<type_at_t<index, sign>>::ptype const>
+			(ptr_)(this_, static_cast<Args &&>(args)...); }
 
 	template<typename T>
 	void reset(T *impl) noexcept
@@ -248,11 +249,7 @@ protected:
 
 	template<typename T=void>
 	MetaGenerator<void> &get_meta() const noexcept 
-	// TODO: 1. requries will not effect here.
-	//       2. Launder for avoid UB? unknown. if layout compatible, that should be meaningless.
-	//          But we cannot observe it surely layout compatible or not...
-	{ return::std::bit_cast<MetaGenerator<void>&>
-		(*(::std::bit_cast<void const *const *>(ptr_) + (sizeof...(Signs)))); }
+	{ return virtual_bundle::template get<0u, MetaGenerator<void> const>(ptr_); }
 	
 private:
 	void const *ptr_{nullptr};
@@ -339,7 +336,7 @@ class box : public Base::dynamic::template attach<Base>
 {
 	using base = typename Base::dynamic::template attach<Base>;
 	template<typename T>
-	static constexpr void do_delete(void *ptr) noexcept { delete::std::bit_cast<T*>(ptr); }
+	static constexpr void do_delete(void *ptr) noexcept { delete static_cast<T*>(ptr); }
 public:
 	constexpr box() = default;
 
@@ -364,7 +361,7 @@ public:
 	template<typename T, typename...Args>
 	constexpr void emplace(Args&&...args) noexcept
 	{ if(deleter_) deleter_(base::get_this());
-	  base::reset(new T{::std::bit_cast<Args&&>(args)...});
+	  base::reset(new T{static_cast<Args&&>(args)...});
 	  deleter_ = &do_delete<T>; }
 
 	constexpr void reset() noexcept 

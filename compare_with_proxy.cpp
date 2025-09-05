@@ -4,6 +4,14 @@
 #include "proxy/proxy.h"
 
 
+// Traditional interface like.
+
+struct Idrawable 
+{
+    virtual void draw() = 0;
+};
+
+
 // Proxy like.
 
 PRO_DEF_MEM_DISPATCH(pro_mem_draw, draw); // MACRO here.
@@ -29,7 +37,7 @@ struct dyn_drawable
 
 // Implmentation.
 
-struct rectangle
+struct rectangle : Idrawable
 {
     void draw() { std::cout << "-"; }
 };
@@ -39,9 +47,11 @@ using clk = std::chrono::high_resolution_clock;
 
 void test_0()
 {
+    auto invoke_time = 500;
     auto missing = clk::now() - clk::now();
     rectangle r;
     dyn::view<dyn_drawable> dv(r);
+    Idrawable &w = r;
     auto pv = pro::make_proxy_view<pro_drawable>(r);
 
     auto begin = clk::now();
@@ -49,7 +59,7 @@ void test_0()
 
     // test proxy invocation.
     begin = clk::now();
-    for (auto i{100}; i--;)
+    for (auto i{invoke_time}; i--;)
         pv->draw();
     end = clk::now();
     ::std::cout 
@@ -59,11 +69,21 @@ void test_0()
 
     // test my invocation.
     begin = clk::now();
-    for (auto i{100}; i--;)
+    for (auto i{invoke_time}; i--;)
         dv.draw();
     end = clk::now();
     ::std::cout 
         << "\ndynamic concept SPEND:"
+        << (end - begin - missing)
+        << ::std::endl;
+
+    // test my invocation.
+    begin = clk::now();
+    for (auto i{invoke_time}; i--;)
+        w.draw();
+    end = clk::now();
+    ::std::cout 
+        << "\nvirtual function SPEND:"
         << (end - begin - missing)
         << ::std::endl;
 }

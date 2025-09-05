@@ -124,25 +124,25 @@ And more you can do was shown in [`example.cpp`](example.cpp).
 Online running is on [godbolt](https://godbolt.org/z/nhdMEbo1q).   
 
 ## What is the difference with `Microsoft\proxy`?
-We have different interface with it, but our library is more bottom part. That means we support more customization and flexible operation.
-Anyway, you can define some macro and implment an proxy.
+We have different interface with it, but our library is more bottom part. 
+That means we support more customization and flexible operation.
+Anyway, you can define some macro and implment *proxy-like interface*
+by yourself.
 
 See the comparation at [`compare_with_proxy.cpp`](compare_with_proxy.cpp), 
-and run in [**godbolt**](https://godbolt.org/z/xa4jv7T8E).
+and run in [**godbolt**](https://godbolt.org/z/GjdeGbPso).
 
 ## Would it be slow?
 No, it even faster than `proxy` since invocation won't need to  
 dereference `ownership manager`.
 
 Sometime the compilers might apply devirtualization. 
-Then it looks faster than dynamic concept.
-but not all the virtual function can be so lucky for 
-being devirtualized by compilers.
-See [online test](https://godbolt.org/z/ard6Phrhb)
+So it looks faster than dynamic concept.
+See [online test](https://godbolt.org/z/Mcd9c8848)
 
-*NOTE:  since Clang doesn't like inline function, 
-it may preform slower than GCC. However, 
-dynamic concept will always faster than 
+*NOTE: since some function wasn't inlined without optimization, 
+it may preform slower than virtual function.
+However, dynamic concept always faster than 
 virtual function in MSVC.*
 
 ## How does it implmented?
