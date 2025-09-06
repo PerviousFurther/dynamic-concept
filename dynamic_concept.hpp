@@ -9,9 +9,16 @@
 
 // `#define DYNAMIC_CONCEPT_EXPORT_AS_MODULE export` 
 // to embed dynamic concept into your module.
-// 
 #if !defined(DYNAMIC_CONCEPT_EXPORT)
 #	define DYNAMIC_CONCEPT_EXPORT_AS_MODULE
+#endif
+
+#if defined(_MSC_VER) || defined(__INTEL_COMPILER) || defined(__CUDACC__)
+#	define DYNAMIC_CONCEPT_FORCEINLINE __forceinline
+#elif defined(__CLANG__) || defined(__GNUC__)
+#	define DYNAMIC_CONCEPT_FORCEINLINE __attribute__((always_inline))
+#else
+#	define DYNAMIC_CONCEPT_FORCEINLINE inline
 #endif
 
 DYNAMIC_CONCEPT_EXPORT_AS_MODULE
@@ -218,38 +225,37 @@ protected:
 	{ ::std::swap(ptr_, other.ptr_); ::std::swap(this_, other.this_); return *this; }
 
 private:
-	template<::std::size_t index, typename T=void *const>
-	static constexpr auto &get(void const *ptr) noexcept 
-	{ return reinterpret_cast<T&>
-		(*(reinterpret_cast<void *const*>(ptr) + (sizeof...(Signs) - (index)))); }
+	template<::std::size_t index, typename T>
+	static constexpr DYNAMIC_CONCEPT_FORCEINLINE auto &get(void const *ptr) noexcept 
+	{ return (*(reinterpret_cast<::std::add_const_t<T>*>(ptr) + (sizeof...(Signs) - (index)))); }
 
 protected:
 	template<::std::size_t index, typename...Args>
-	constexpr decltype(auto) invoke(Args&&...args) 
+	constexpr DYNAMIC_CONCEPT_FORCEINLINE decltype(auto) invoke(Args&&...args) 
 	{ return virtual_bundle::template 
-		get<index + 1, typename prototype_traits<type_at_t<index, sign>>::ptype const>
+		get<index + 1, typename prototype_traits<type_at_t<index, sign>>::ptype>
 			(ptr_)(this_, static_cast<Args &&>(args)...); }
 
 	template<typename T>
-	void reset(T *impl) noexcept
+	constexpr void reset(T *impl) noexcept
 	{ this->reset(::std::in_place_type<T>, impl); }
 
 	template<typename T>
-	constexpr void reset(::std::in_place_type_t<T>, void *impl) noexcept
+	constexpr DYNAMIC_CONCEPT_FORCEINLINE void reset(::std::in_place_type_t<T>, void *impl) noexcept
 	{ ptr_ = &virtual_bundle::template typeinfos_<::std::remove_cvref_t<T>>;
 	  this_ = impl; }
 
-	void reset() noexcept { ptr_ = nullptr; this_ = nullptr; }
+	constexpr void reset() noexcept { ptr_ = nullptr; this_ = nullptr; }
 
 	// reset `this_` only.
-	void tweak(void *self = nullptr) noexcept 
+	constexpr void tweak(void *self = nullptr) noexcept 
 	{ this_ = self; }
 
-	void *get_this() const noexcept { return this_; }
+	constexpr void *get_this() const noexcept { return this_; }
 
-	template<typename T=void>
-	MetaGenerator<void> &get_meta() const noexcept 
-	{ return virtual_bundle::template get<0u, MetaGenerator<void> const>(ptr_); }
+	constexpr auto &get_meta() const noexcept 
+	{ return *reinterpret_cast<MetaGenerator<void> const*>
+		(reinterpret_cast<void(*const*)()>(ptr_) + sizeof...(Signs)); }
 	
 private:
 	void const *ptr_{nullptr};
@@ -285,7 +291,7 @@ struct concept_descriptor
 	using append = concept_descriptor<MG, Ss..., S>;
 
 	template<::std::size_t index, typename Interface, typename...Args>
-	static constexpr decltype(auto) invoke(Interface *self, Args&&...args) 
+	static constexpr DYNAMIC_CONCEPT_FORCEINLINE decltype(auto) invoke(Interface *self, Args&&...args) 
 	{ return static_cast<attach<Interface>*>(self)->template invoke<index>(static_cast<Args&&>(args)...); }
 };
 
@@ -326,7 +332,7 @@ public:
 	constexpr void reset() noexcept 
 	{ base::reset(); }
 
-	constexpr auto info() const noexcept { return base::info(); }
+	constexpr auto info() const noexcept { return base::get_meta(); }
 
 	operator bool() const noexcept { return base::get_this(); }
 };
@@ -367,7 +373,7 @@ public:
 	constexpr void reset() noexcept 
 	{ if(deleter_) { ::std::exchange(deleter_, nullptr)(base::get_this()); base::reset(); } }
 
-	constexpr const auto &info() const noexcept { return base::template get_meta<>(); }
+	constexpr const auto &info() const noexcept { return base::get_meta(); }
 
 	operator bool() const noexcept { return deleter_; }
 
@@ -460,7 +466,7 @@ public:
 	constexpr auto &get() noexcept { return data_; }
 	constexpr auto &get() const noexcept { return data_; }
 
-	constexpr const auto &info() const noexcept { return base::template get_meta<>(); }
+	constexpr const auto &info() const noexcept { return base::get_meta(); }
 
 	constexpr operator bool() const noexcept { return static_cast<bool>(data_.get()); }
 
@@ -485,4 +491,6 @@ using impl::generic_;
 
 }
 
+#undef DYNAMIC_CONCEPT_FORCEINLINE
+#undef DYNAMIC_CONCEPT_EXPORT_AS_MODULE
 #endif
