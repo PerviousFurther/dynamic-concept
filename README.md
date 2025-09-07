@@ -1,105 +1,129 @@
 # What is this library?
-`dynamic concept` is an **single header library** consist by serval method 
+`dynamic-concept` is an **single header library** consist by serval method 
 implmenting fast polymorphism  
 that ready to take the place of traditional virtual inheritance polymorphism.
 
-# Why can it replace traditional polymorphism?
+# What is the problem of traditional polymorphism?
 because the problem of counterintuitive +8/+4 byte and OOP, 
 virtual function have been criticized for many years.
 
 ```cpp
 
-struct interface_0 { virtual foo0(); };
-struct interface_1 { virtual foo1(); };
+struct IMeow { virtual void Meow(int time) = 0; };
+struct IWoof { virtual void Woof(int time) = 0; };
 
-struct impl : interface_0, interface_1 {};
+struct Doggy : IMeow, IWoof 
+{ 
+    void Meow() { /*...*/ }
+    void Bark() { /*...*/ }
+};
 
-static_assert(sizeof(impl) == 16) // in x64 never fire!
-
-// also the pointer casting will change the pointer's value.
-// the following part will always resulting true!
-// (uint64_t)(interface_0*)(pointer of impl) != (uint64_t)(interface_1*)(pointer of impl)
-
-// AND
-// the interface can only be called by pointer or rerference, like...
-// ' void plug(interface_0 *ptr); '
-// or 
-// ' void plug(interface_0 &ref); '
-// the ownership is not clear.
-
+static_assert(sizeof(Doggy) == sizeof(void*)*2) // never fire!
 ```
-This library offer a better method to implement polymorphism,
-that humanized interface composition and clear ownership, 
-without inheritance. 
+
+also the pointer casting will change the pointer's value.
+the following part will always resulting true!
+
+```cpp
+(uintptr_t)(IWoof*)(doggy) != (uintptr_t)(IMeow*)(doggy)
+```
+NOTE: *Assume 'Doggy doggy' has been initialized.*
+
+AND
+the interface can only be called by **pointer** or **reference**, like...
+```cpp
+void Pat(IWoof *ptr);
+```
+or 
+```cpp
+void Pat(IMeow &ref);
+```
+the ownership is not clear.
+
+# Using Simple Version of `dynamic-concept`
+To replace code mentioned by our library.
+
+Use the code as followed.
+
 ```cpp
 
-struct programable 
+// for library.
+#include "dyn_cc.hpp"
+
+struct Meowable
 {
-  using dynamic = /* See `example.cpp` for more details. */;
-  void program() { dynamic::invoke<0>(this); /* '0' is depended on `dynamic` */ }
+    // noexcept is optional, these can notice who wanna implment the interface.
+    // btw, '&' and 'const' is also allowed.
+    // ----------------------\/ 
+    DYN_FN(0 NAMED Meow WITH noexcept RETURN void TAKE (time NAMED int));
+    DYN_CC(Meowable EXTENDS());
+};
+struct Woofable
+{
+    DYN_FN(0 NAMED Woof WITH RETURN void TAKE (time NAMED int));
+    DYN_CC(Woofable EXTENDS());
 };
 
-struct joe // define the implmentation.
-{ 
-  void program() { ::std::cout << "Hello world!"; }
-}
-// box have same ownership like unique_ptr
-void do_program(dyn::box<programmer> who) 
+struct Doggy
 {
-  who.program();
-}
-
-do_program({std::in_place_type<joe>}); // Output: Hello world!
-
+    void Woof() { /*...*/ }
+    void Meow() { /*...*/ }
+};
 ```
-Also we can implment this.
+
+To define procedure.
+select one of `dyn::view`, `dyn::box`, `dyn::generic` to mark ownership.
+
 ```cpp
+void PatByView(dyn::view<Woofable> view) { view.Woof(); }
+void PatByMonopoly(dyn::box<Meowable> meow) { meow.Meow(); }
 
-struct programable 
-{
-  using dynamic = /* See `example.cpp` for more details. */;
-};
+Doggy doggy;
+PatByView(doggy); // call view verison.
 
-struct sleepable
-{
-  using dynamic = /* See `example.cpp` for more details. */;
-};
-
-struct programmer
-{
-  using dynamic = dyn::require<programable, sleepable>; // like multiple inheritance.
-
-  void program() {/* See `example.cpp` for more details. */}
-  void sleep() {/* See `example.cpp` for more details. */}
-};
-
-struct mary 
-{
-  void pragram() { ::std::cout << "Hello world!"; }
-  void sleep() { ::std::cout << "Bye bye world!"; }
-};
-
-void past_a_day(dyn::box<programmer> p)
-{ 
-  p.program(); 
-  p.sleep(); 
-}
-
-past_a_day({::std::in_place_type<mary>}); // Output: Hello world! Bye bye world!
-
-// btw, the 
-// sizeof(dyn::box<<any interface>>) will consist 
-// 24(64 bit platform)/12(32 bit platform) bytes,
-// since no inheritance was make.
+PatByMonopoly({std::in_place_type<Doggy>}); // call monopoly version.
 ```
+Or, require `Meow` and `Woof` same time:
 
-# Concept
+```cpp
+// ... Meowable and Woofable ...
+
+struct CatDogLike
+{
+    DYN_TO((Meowable,0) NAMED Meow WITH);
+    DYN_TO((Woofable,0) NAMED Woof WITH);
+    DYN_CC(CatDogLike, EXTENDS(Meowable, Woofable));
+};
+
+```
+However, there is no inheitance problem, since no inheritance from 
+`Meowable` or `Woofable` was made.
+
+*NOTE: We are too lazy to make some conversion...
+thus `dyn::view<CatDogLike>` cannot convert to 
+`dyn::view<Meow>` currently.*
+
+More example, see [`example_with_macro.cpp`](example_with_macro.cpp)
+
+# Using basic part of `dynamic-concept`
+If you doesn't like the MACRO version and want to define your own
+pattern and use it. 
+You will only need [`dynamic_concept.hpp`](dynamic_concept.hpp).
+
+And more you can do was shown in [`example.cpp`](example.cpp).
+
+Online running is on [godbolt](https://godbolt.org/z/nhdMEbo1q).
+
+## For people who wanna know `dynamic-concept` Basic Concept
 
 - `dyn::require<...>`: 
 define function signature and prototype that implmentation should impl.
 
-- `dyn::view`, `dyn::box`, `dyn::generic_`:
+- `dyn::view`, `dyn::box`, `dyn::generic`:
 These are implmentation ownership manager.
+
+  *NOTE: `dyn::generic` needs some kind of smart pointer   
+  or other 'on stack' object for non-intrusive lifetime management.*
 
 - `prototype`:
 example: `void()`, `void()&&`, `void(<Invoker>::*)()` or `struct` with 
@@ -112,16 +136,7 @@ For transfer invocation into *concrete named* function or other operation (eg.`o
 - *`MetaGenerator`*:
 Template with one template parameter for receive concrete implmentation type.
 Also, it **MUST** allow `MetaGenerator<void>` and *`layout_compatible`* with any 
-other specialization.
-
-# Usage
-First, copy [`dynamic_concept.hpp`](dynamic_concept.hpp) or git as you like.
-
-Then, `#include "dynamic_concept.hpp"`.
-
-And more you can do was shown in [`example.cpp`](example.cpp).
-
-Online running is on [godbolt](https://godbolt.org/z/nhdMEbo1q).   
+other specialization.   
 
 ## What is the difference with `Microsoft\proxy`?
 We have different interface with it, but our library is more bottom part. 
