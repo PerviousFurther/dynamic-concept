@@ -3,7 +3,7 @@
 #include "dyn_cc.hpp"
 
 // struct or class is ok.
-struct input_streamable
+DYN_STRUCT(input_streamable)
 {
     // NAMED, WITH and RETURN, these macro just an alias of ','.
 
@@ -15,32 +15,39 @@ struct input_streamable
     // If you encounting error reporting from intellsense with "return type mismatch", 
     // generally, this because you forget to place function in `dyn_cc`.
     // 
-    // TODO: intellsense sometime doesn't recognize what is `self::dynamic'.
+    // TODO: intellsense sometime doesn't recognize `self::dynamic'.
 
     // Or if you encounting with error "unclear 'some function'" 
     // change to use `DYN_OF` instead of `DYN_FN` for overload function.
     // \/
-    DYN_CC(input_streamable EXTENDS());
+    DYN_CC(EXTENDS());
 };
 
-struct stream
+DYN_STRUCT(stream)
 {
     DYN_FN(0 NAMED operator>> WITH RETURN bool TAKE (output NAMED char*));
     // this transfer to 'input_streamable::operator<<'.
-    // explicit specify it to enable.
-    // \/ 
+    // explicit specify it to enable. // noexcept is optional.
+    // \/                             \                \/
     DYN_TO((input_streamable, 0) NAMED operator<< WITH noexcept);
-    // Btw, if you wanna transfer to input_streamable, you must
-    // EXTEND(input_streamable)
-    // -----------\/
-    DYN_CC(stream EXTENDS(input_streamable));
-};
+    
+    // Define friend operator.
+    // Library use different strategy done with 'at right' friend 
+    // operator. only friend operator can have these
+    // operation.                         ///
+    // \/                                 \/ conversion from implmentation to interface is allowed.    
+    DYN_FO(1 NAMED operator>> WITH RETURN long TAKE (output NAMED const char*));
 
+    // Btw, if you wanna transfer to input_streamable or as to it, you must EXTEND(input_streamable)
+    // ----\/
+    DYN_CC(EXTENDS(input_streamable));
+};
 
 // TEST.
 
 #include <iostream>
 
+auto &value = "Hello world!";
 struct dummy_stream
 {
     int operator<<(char const *what) 
@@ -48,26 +55,32 @@ struct dummy_stream
         ::std::cout << "Received message: " << what << ::std::endl;
         return int(::std::strlen(what));
     }
-    int operator<<(char what) 
+    int operator<<(char c) 
     {
-        return 0;
+        ::std::cout << "Received char: " << c << ::std::endl; 
+        return 1;
     }
+    //\/ 'int' is not same with interface's 'long'.
     int operator>>(char *where)
     {
-        auto &value = "Hello world!";
-        if (where) 
-            ::std::memcpy(where, value, sizeof(value));
+        if (where) ::std::memcpy(where, value, sizeof(value));
         return sizeof(value);
+    }
+    friend int operator>>(const char *value, dummy_stream &self)
+    {
+        ::std::cout << "Received message by friend: " << value << ::std::endl;
+        return int(::std::strlen(value));
     }
 };
 
 void dosth(dyn::view<stream> view)
 {
-    auto &value = "Hello world!";
     view << value;
     char rec[sizeof(value)];
     view >> rec;
     ::std::cout << "Receive:" << rec << "\n";
+    value >> view;
+    view.as<input_streamable>() << '5';
 }
 
 int main()

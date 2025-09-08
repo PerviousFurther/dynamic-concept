@@ -114,18 +114,59 @@ namespace dyn::objects
 
         char value[size];
     };
-    
+
     // template<::std::size_t size>
     // sstr(const char(&)[size]) -> sstr<size>;
 
     template<typename T, ::std::size_t index, typename...Ts>
     auto make_require_of() noexcept
     {
-        if constexpr (::std::default_initializable<typename T::template conv<index>>)
-            return objects::make_require_of<T, index + 1, Ts..., typename T::template conv<index>>();
+        if constexpr (::std::default_initializable<typename T::template conv<index, void>>)
+            return objects::make_require_of<T, index + 1, Ts..., typename T::template conv<index, void>>();
         else 
             return dyn::impl::require<Ts...>{};
     };
+
+    template<typename T>
+    struct self_awareness
+    {
+    protected:
+        using self = T;
+    };
+
+    // I feel happy to be a cpp programmer.
+    // Totally fake.
+    template<::std::size_t s_, sstr<s_> str, typename Left, typename Right>
+    inline decltype(auto) adl_helper(Left &&left, Right &&right)
+    {
+    #define TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(name)\
+        if constexpr (str == #name) return name(static_cast<Left&&>(left), static_cast<Right&&>(right))
+
+        TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator<<);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator>>);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator+);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator-);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator%);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator*);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator/);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator^);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator>);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator<);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator<=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator>=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator<<);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator<=>);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator<<=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator>>=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator+=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator-=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator*=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator^=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator%=);
+        else TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_(operator~);
+        else static_assert(s_?0:0, "Unknown operator...please open an issue.");
+    #undef TO_ADL_HELPER_AND_MACRO_REALLY_NEED_TO_BE_UGLY_TO_AVOID_REDEFINITION_
+    }
 }
 
 #define DYN_CONCEPT_TO_STR_IMPL_(value) #value
@@ -137,13 +178,6 @@ namespace dyn::objects
 #define DYN_CONCEPT_CONVENSION_NAME_(name) convension<sizeof(#name), #name>
 #define DYN_CONCEPT_FORWARD_(args) static_cast<decltype(args)&&>(args)
 
-#define DYN_CONCEPT_DYN_REQUIRES_IMPL_(name, inheritance, ...) \
-    private:\
-        using self = name;\
-    public:\
-        using dynamic = \
-            decltype(dyn::objects::make_require_of<name, 0 DYN_CONCEPT_EMPTY_INHERITANCE_(inheritance)>());\
-
 #define DYN_CONCEPT_FORWARD_W_IMPL_(name, type, ...) static_cast<type>(name)
 #define DYN_CONCEPT_FORWARD_W_(value) DYN_CONCEPT_FORWARD_W_IMPL_ value 
 
@@ -153,33 +187,52 @@ namespace dyn::objects
 #define DYN_CONCEPT_EXPAND_PARAMETER_TYPE_IMPL_(name, type, ...) type
 #define DYN_CONCEPT_EXPAND_PARAMETER_TYPE_(value) DYN_CONCEPT_EXPAND_PARAMETER_IMPL_ value
 
+
 #define DYN_CONCEPT_DYN_FN_IMPL_(index, name, qualifier, return_type, ...)\
     public:\
-        template<::std::size_t> struct conv; \
-        template<> struct conv<index> { \
+        template<::std::size_t, typename> struct conv; \
+        template<typename FUCK> struct conv<index, FUCK> { \
         using prototype = \
             return_type(DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_EXPAND_PARAMETER_TYPE_,__VA_ARGS__));\
         template<typename T, typename...Args> \
             constexpr decltype(auto) operator()(T &&impl, Args&&...args) \
                 { return static_cast<T&&>(impl).name(static_cast<Args&&>(args)...); } }; \
-        constexpr return_type name(DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_EXPAND_PARAMETER_,__VA_ARGS__)) qualifier \
-        { return self::dynamic::template invoke<typename self::template conv<index>>(this \
+        constexpr return_type DYNAMIC_CONCEPT_FORCEINLINE name(DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_EXPAND_PARAMETER_,__VA_ARGS__)) qualifier \
+        { return self::dynamic::template invoke<typename self::template conv<index, void>>(this \
                 __VA_OPT__(,DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_FORWARD_W_,__VA_ARGS__))); }
 
 #define DYN_CONCEPT_DYN_FF_IMPL_(index, name, qualifier, return_type, ...)\
     public:\
-        template<::std::size_t> struct conv; \
-        template<> struct conv<index> { \
+        template<::std::size_t, typename> struct conv; \
+        template<typename  FUCK> struct conv<index, FUCK> { \
         using prototype = \
             return_type(DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_EXPAND_PARAMETER_TYPE_,__VA_ARGS__));\
         template<typename T, typename...Args> \
             constexpr decltype(auto) operator()(T &&impl, Args&&...args) \
                 { return name(static_cast<T&&>(impl), static_cast<Args&&>(args)...); } }; \
-        constexpr return_type name(DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_EXPAND_PARAMETER_,__VA_ARGS__)) qualifier \
-        { return self::dynamic::template invoke<typename self::template conv<index>>(this \
+        template<typename Self>\
+        friend constexpr return_type DYNAMIC_CONCEPT_FORCEINLINE name(Self &&self_, DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_EXPAND_PARAMETER_,__VA_ARGS__)) qualifier \
+            requires(::std::derived_from<::std::remove_cvref_t<Self>, self>)\
+        { return self::dynamic::template invoke<typename self::template conv<index, void>>(&static_cast<dyn::impl::qual_like_t<self, Self&>>(self_) \
                 __VA_OPT__(,DYN_CONCEPT_OP_TABLE_(DYN_CONCEPT_FORWARD_W_,__VA_ARGS__))); }
 
-#define DYN_CONCEPT_DYN_TRANSFER_CONV_IMPL_(base, index) typename base::template conv<index>
+#define DYN_CONCEPT_DYN_FO_IMPL_(index, name, qualifier, return_type, parameter)\
+    public:\
+        template<::std::size_t, typename> struct conv; \
+        template<typename  FUCK> struct conv<index, FUCK> { \
+        using prototype = \
+            return_type(DYN_CONCEPT_EXPAND_PARAMETER_TYPE_(parameter));\
+        template<typename T, typename Args> \
+            constexpr decltype(auto) operator()(T &&impl, Args &&args) \
+                { return dyn::objects::adl_helper<sizeof(#name), #name>(static_cast<Args&&>(args), static_cast<T&&>(impl)); } }; \
+        template<typename Self>\
+        friend constexpr return_type DYNAMIC_CONCEPT_FORCEINLINE name(DYN_CONCEPT_EXPAND_PARAMETER_(parameter), Self &&self_) qualifier \
+            requires(::std::derived_from<::std::remove_cvref_t<Self>, self>)\
+        { return self::dynamic::template invoke<typename self::template conv<index, void>>(&static_cast<dyn::impl::qual_like_t<self, Self&>>(self_) \
+            , DYN_CONCEPT_FORWARD_W_(parameter)); }
+
+
+#define DYN_CONCEPT_DYN_TRANSFER_CONV_IMPL_(base, index) typename base::template conv<index, void>
 #define DYN_CONCEPT_DYN_TRANSFER_CONV_(value) DYN_CONCEPT_DYN_TRANSFER_CONV_IMPL_ value
 #define DYN_CONCEPT_DYN_TRANSFER_IMPL_(base, name, qualifier)\
     public: \
@@ -187,18 +240,31 @@ namespace dyn::objects
         constexpr decltype(auto) name(Args&&...args) qualifier \
         { return self::dynamic::template invoke<DYN_CONCEPT_DYN_TRANSFER_CONV_(base)>(this, static_cast<Args&&>(args)...); }
 
+#define DYN_CONCEPT_DYN_REQUIRES_IMPL_(ignored, inheritance, ...) \
+    public:\
+        using dynamic = \
+            decltype(dyn::objects::make_require_of<self, 0 DYN_CONCEPT_EMPTY_INHERITANCE_(inheritance)>())
+
 // Define member functionality, macro can be replace by ','.
 // Pattern should like:
-//  DYN_FN(<func index> NAMED <func name> WITH [qualifier] RETURN <return type> TAKE (<argument's name> NAMED <type>))
+//  DYN_FN(<func index> NAMED <func name> WITH [qualifier] RETURN <return type> TAKE [(<argument's name> NAMED <type>)...])
 // N--------------------A
 // <func name>: must samed with impl's.
 #define DYN_FN(...) DYN_CONCEPT_DYN_FN_IMPL_(__VA_ARGS__)
 // Define friend functionality, macro can be replace by ','.
+// Remember that qualifier is not allow with 'const' or '&'.
+// Pattern should like:
+//  DYN_FF(<func index> NAMED <func name> WITH [qualifier] RETURN <return type> TAKE [(<argument's name> NAMED <type>)...])
+// N--------------------A
+// <func name>: must samed with impl's.
+#define DYN_FF(...) DYN_CONCEPT_DYN_FF_IMPL_(__VA_ARGS__)
+// Define friend 'at right' operator, macro can be replace by ','.
+// Remember that qualifier is not allow with 'const' or '&'.
 // Pattern should like:
 //  DYN_FF(<func index> NAMED <func name> WITH [qualifier] RETURN <return type> TAKE (<argument's name> NAMED <type>))
 // N--------------------A
 // <func name>: must samed with impl's.
-#define DYN_FF(...) DYN_CONCEPT_DYN_FF_IMPL_(__VA_ARGS__)
+#define DYN_FO(...) DYN_CONCEPT_DYN_FO_IMPL_(__VA_ARGS__)
 // Inherit functionality from base, macro can be replace by ','.
 // Pattern should like:
 //  DYN_TO((<base type>, <func index>) NAMED <func name> WITH [qualifier])
@@ -210,12 +276,12 @@ namespace dyn::objects
 //  DYN_CC(<interface name> EXTENDS([base type...]))
 #define DYN_CC(...) DYN_CONCEPT_DYN_REQUIRES_IMPL_(__VA_ARGS__)
 
+#define DYN_STRUCT(name, ...) struct name : dyn::objects::self_awareness<name> __VA_OPT__(,__VA_ARGS__)
+
 #if !defined(DYN_CONCEPT_NO_NETURAL_LANG_PRIMITIVE)
 #  if defined(MUST) || defined(UNADORNED) || defined(RETURN) || defined(TAKE) || defined(EXTENDS)
 #    warning "Some MACRO have same naming with dynamic-concept's, the behavior will be undefined."
 #  endif
-// [FROM DYNAMIC-CONCEPT] Mark that next part are qualifiers of functionality.
-#  define MUST ,
 // [FROM DYNAMIC-CONCEPT] Mark that next part are return type.
 #  define RETURN ,
 // [FROM DYNAMIC-CONCEPT] Mark that rest part are parameters.
