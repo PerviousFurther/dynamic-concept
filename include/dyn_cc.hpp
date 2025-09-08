@@ -240,10 +240,10 @@ namespace dyn::objects
         constexpr decltype(auto) name(Args&&...args) qualifier \
         { return self::dynamic::template invoke<DYN_CONCEPT_DYN_TRANSFER_CONV_(base)>(this, static_cast<Args&&>(args)...); }
 
-#define DYN_CONCEPT_DYN_REQUIRES_IMPL_(ignored, inheritance, ...) \
+#define DYN_CONCEPT_DYN_REQUIRES_IMPL_(...) \
     public:\
         using dynamic = \
-            decltype(dyn::objects::make_require_of<self, 0 DYN_CONCEPT_EMPTY_INHERITANCE_(inheritance)>())
+            decltype(dyn::objects::make_require_of<self, 0 __VA_OPT__(,__VA_ARGS__)>())
 
 // Define member functionality, macro can be replace by ','.
 // Pattern should like:

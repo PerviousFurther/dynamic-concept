@@ -20,7 +20,7 @@ DYN_STRUCT(input_streamable)
     // Or if you encounting with error "unclear 'some function'" 
     // change to use `DYN_OF` instead of `DYN_FN` for overload function.
     // \/
-    DYN_CC(EXTENDS());
+    DYN_CC();
 };
 
 DYN_STRUCT(stream)
@@ -30,7 +30,7 @@ DYN_STRUCT(stream)
     // explicit specify it to enable. // noexcept is optional.
     // \/                             \                \/
     DYN_TO((input_streamable, 0) NAMED operator<< WITH noexcept);
-    
+
     // Define friend operator.
     // Library use different strategy done with 'at right' friend 
     // operator. only friend operator can have these
@@ -38,14 +38,15 @@ DYN_STRUCT(stream)
     // \/                                 \/ conversion from implmentation to interface is allowed.    
     DYN_FO(1 NAMED operator>> WITH RETURN long TAKE (output NAMED const char*));
 
-    // Btw, if you wanna transfer to input_streamable or as to it, you must EXTEND(input_streamable)
+    // Btw, if you wanna transfer to input_streamable or as to it, you must place input_streamable
     // ----\/
-    DYN_CC(EXTENDS(input_streamable));
+    DYN_CC(input_streamable);
 };
 
 // TEST.
 
 #include <iostream>
+#include <cstring>
 
 auto &value = "Hello world!";
 struct dummy_stream
@@ -88,3 +89,4 @@ int main()
     dummy_stream stream;
     dosth(stream);
 }
+
