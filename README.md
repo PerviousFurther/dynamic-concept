@@ -46,19 +46,18 @@ To replace code mentioned by our library.
 Use the code as followed.
 
 ```cpp
-
 // for library.
 #include "dyn_cc.hpp"
 
-struct Meowable
+DYN_STRUCT(Meowable)
 {
     // noexcept is optional, these can notice who wanna implment the interface.
     // btw, '&' and 'const' is also allowed.
     // ----------------------\/ 
     DYN_FN(0 NAMED Meow WITH noexcept RETURN void TAKE (time NAMED int));
-    DYN_CC(Meowable EXTENDS());
+    DYN_CC();
 };
-struct Woofable
+DYN_STRUCT(Woofable)
 {
     DYN_FN(0 NAMED Woof WITH RETURN void TAKE (time NAMED int));
     DYN_CC(Woofable EXTENDS());
@@ -87,32 +86,39 @@ Or, require `Meow` and `Woof` same time:
 
 ```cpp
 // ... Meowable and Woofable ...
-
-struct CatDogLike
+DYN_STRUCT(CatDogLike)
 {
+    // like using Meowable::Meow. 
     DYN_TO((Meowable,0) NAMED Meow WITH);
     DYN_TO((Woofable,0) NAMED Woof WITH);
-    DYN_CC(CatDogLike, EXTENDS(Meowable, Woofable));
+    DYN_CC(Meowable, Woofable);
 };
-
 ```
-However, there is no inheitance problem, since no inheritance from 
+And there is no inheitance problem, since no inheritance from 
 `Meowable` or `Woofable` was made.
 
-*NOTE: We are too lazy to make some conversion...
-thus `dyn::view<CatDogLike>` cannot convert to 
-`dyn::view<Meow>` currently.*
+If you doesn't wants to use `DYN_TO`, 
+using `as` in `dyn::box` or `dyn::view` is ok.
 
-More example, see [`example_with_macro.cpp`](example_with_macro.cpp)
+```cpp
+// ... Meowable and Woofable ...
+DYN_STRUCT(CatDogLikeStub)
+{
+    DYN_CC(Meowable, Woofable);
+};
+
+dyn::view<CatDogLikeStub> view{/*...*/};
+view.as<Meowable>().Meow() // same as Meowable::Meow.
+
+```
+More example, see [`quick start`](example/quickstart.cpp)
 
 # Using basic part of `dynamic-concept`
 If you doesn't like the MACRO version and want to define your own
 pattern and use it. 
-You will only need [`dynamic_concept.hpp`](dynamic_concept.hpp).
+You will only need [`dynamic_concept.hpp`](include/dynamic_concept.hpp).
 
-And more you can do was shown in [`example.cpp`](example.cpp).
-
-Online running is on [godbolt](https://godbolt.org/z/nhdMEbo1q).
+And more you can do was shown in [`example.cpp`](example/fundumental.cpp).
 
 ## For people who wanna know `dynamic-concept` Basic Concept
 
@@ -144,8 +150,7 @@ That means we support more customization and flexible operation.
 Anyway, you can define some macro and implment *proxy-like interface*
 by yourself.
 
-See the comparation at [`compare_with_proxy.cpp`](compare_with_proxy.cpp), 
-and run in [**godbolt**](https://godbolt.org/z/GjdeGbPso).
+See the comparation at [`compare_with_proxy.cpp`](example/compare_with_proxy.cpp), 
 
 ## Would it be slow?
 No, it even faster than `proxy` since invocation won't need to  
@@ -169,7 +174,7 @@ Other type just for making beautiful invocation or
 collecting more meta infomation.
 
 Yep, key part didn't over 50 lines. 
-But tempolate operation ballooned the code into 400 lines.
+But template operation ballooned the code into 800 lines.
 
 ## We welcome you to open an issue or contribute code.
 There still some limitation that:

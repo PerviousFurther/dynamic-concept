@@ -1,4 +1,7 @@
-﻿#include "dynamic_concept.hpp"
+﻿// This file is describe for full usage of dynamic-concept.
+// About how to use it as traditional interface.
+// See 'example/quickstart.cpp' instead.
+#include "dynamic_concept.hpp"
 
 #include <iostream>
 
@@ -36,7 +39,7 @@ struct no_constraints
 template<typename Signature, typename Constraint, typename Transform=std::identity>
 struct eprogram_ : program_<Constraint, Transform>
 {
-    using prototype = Signature;
+    using proto = Signature;
 };
 
 struct eprogram : eprogram_<void(int), no_constraints> {};
@@ -57,8 +60,7 @@ struct programable
 };
 
 // However, if you dont want these customization.
-// define as follow:
-//
+// you can define as follow:
 // ```cpp
 // #define DEFINE_CONVENSION(convension_name, invoke_name) 
 // struct convension_name \
@@ -69,7 +71,7 @@ struct programable
 // 	{ return static_cast<Impl&&>(impl).invoke_name(static_cast<Args &&>(args)...); } \
 // };
 // ```
-// `convension_name`: is what you express to require.
+// `convension_name`: is what you require implementation is defined.
 // `invoke_name`: is what function will be invoke in impl.
 // these would do the samething with proxy.
 // NOTE: we don't compatible with proxy.
