@@ -60,7 +60,7 @@ struct Meowable
 struct Woofable
 {
     DYN_FN(0 NAMED Woof WITH RETURN void TAKE (time NAMED int));
-    DYN_CC(Woofable EXTENDS());
+    DYN_CC();
 };
 
 struct Doggy
