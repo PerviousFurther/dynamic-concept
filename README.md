@@ -49,7 +49,7 @@ Use the code as followed.
 // for library.
 #include "dyn_cc.hpp"
 
-DYN_STRUCT(Meowable)
+struct Meowable
 {
     // noexcept is optional, these can notice who wanna implment the interface.
     // btw, '&' and 'const' is also allowed.
@@ -57,7 +57,7 @@ DYN_STRUCT(Meowable)
     DYN_FN(0 NAMED Meow WITH noexcept RETURN void TAKE (time NAMED int));
     DYN_CC();
 };
-DYN_STRUCT(Woofable)
+struct Woofable
 {
     DYN_FN(0 NAMED Woof WITH RETURN void TAKE (time NAMED int));
     DYN_CC(Woofable EXTENDS());
@@ -86,7 +86,7 @@ Or, require `Meow` and `Woof` same time:
 
 ```cpp
 // ... Meowable and Woofable ...
-DYN_STRUCT(CatDogLike)
+struct CatDogLike
 {
     // like using Meowable::Meow. 
     DYN_TO((Meowable,0) NAMED Meow WITH);
@@ -102,7 +102,7 @@ using `as` in `dyn::box` or `dyn::view` is ok.
 
 ```cpp
 // ... Meowable and Woofable ...
-DYN_STRUCT(CatDogLikeStub)
+struct CatDogLikeStub
 {
     DYN_CC(Meowable, Woofable);
 };
